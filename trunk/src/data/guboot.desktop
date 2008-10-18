@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=0.1
+Encoding=UTF-8
+Name=USB Boot Stick Creator
+Comment=Utility for creating bootable USB sticks
+Type=Application
+Exec=guboot
+Icon=guboot
+Terminal=false
+Categories=Application;System;
+MimeType=application/x-cd-image;
+StartupNotify=true
