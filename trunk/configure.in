@@ -1,0 +1,53 @@
+# Init
+AC_INIT(configure.in)
+AM_INIT_AUTOMAKE(guboot, 0.1)
+AM_CONFIG_HEADER(src/config.h)
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_INSTALL
+
+# Checks for libraries
+PKG_CHECK_MODULES(GLIB, glib-2.0)
+AC_SUBST(GLIB_LIBS)
+AC_SUBST(GLIB_CFLAGS)
+
+PKG_CHECK_MODULES(GTK, gtk+-2.0)
+AC_SUBST(GTK_LIBS)
+AC_SUBST(GTK_CFLAGS)
+
+PKG_CHECK_MODULES(GLADE, libglade-2.0)
+AC_SUBST(GLADE_LIBS)
+AC_SUBST(GLADE_CFLAGS)
+
+PKG_CHECK_MODULES(DBUS, dbus-glib-1)
+AC_SUBST(DBUS_LIBS)
+AC_SUBST(DBUS_CFLAGS)
+
+PKG_CHECK_MODULES(HAL, hal-storage)
+AC_SUBST(HAL_LIBS)
+AC_SUBST(HAL_CFLAGS)
+
+# Makefile output
+AC_OUTPUT([ Makefile \
+			doc/Makefile \
+			src/Makefile \
+			src/data/Makefile ])
+
+# Nette Ausgabe
+AC_MSG_RESULT([
+  ************************************************************
+ *  guboot $VERSION:  Automatic configuration OK.
+**
+**  Installation directories:
+**
+**     Program: ................. ${prefix}/bin
+**
+**************************************************************
+**
+**  Type 'make' to compile guboot.
+** 
+**  Have fun with guboot!
+ *
+  ************************************************************
+])  
