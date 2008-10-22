@@ -1,6 +1,7 @@
 SUBDIRS =	doc \
-			src \
-			src/data
+			src/bk \
+			src/data \
+			src
 			
 docdir = $(prefix)/share/doc/guboot
 

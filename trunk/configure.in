@@ -5,6 +5,7 @@ AM_CONFIG_HEADER(src/config.h)
 
 # Checks for programs.
 AC_PROG_CC
+AC_PROG_LIBTOOL
 AC_PROG_INSTALL
 
 # Checks for libraries
@@ -31,8 +32,9 @@ AC_SUBST(HAL_CFLAGS)
 # Makefile output
 AC_OUTPUT([ Makefile \
 			doc/Makefile \
-			src/Makefile \
-			src/data/Makefile ])
+			src/bk/Makefile \
+			src/data/Makefile \
+			src/Makefile ])
 
 # Nette Ausgabe
 AC_MSG_RESULT([

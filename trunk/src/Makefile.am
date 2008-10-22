@@ -26,4 +26,5 @@ guboot_LDADD = $(GLIB_LIBS) \
 			   $(GTK_LIBS) \
 			   $(GLADE_LIBS) \
 			   $(HAL_LIBS) \
-			   $(DBUS_LIBS)
+			   $(DBUS_LIBS) \
+			   bk/libbk.la
