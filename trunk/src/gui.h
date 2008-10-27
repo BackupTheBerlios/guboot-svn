@@ -24,14 +24,14 @@
 
 // Includes
 #include <gtk/gtk.h>
-#include <glade/glade.h>
 
 // Functions
 void gui_init (int argc, char *argv[]);
 
 gchar* gui_image_get_file (void);
 
-void gui_device_insert (gchar *name, gchar *mntpoint, gchar *partition);
+void gui_device_insert (gchar *name, gulong id);
+void gui_device_remove (gulong id);
 void gui_device_empty_list (void);
 gchar* gui_device_get_name (void);
 gchar* gui_device_get_mntpoint (void);

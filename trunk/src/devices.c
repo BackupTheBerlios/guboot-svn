@@ -19,94 +19,90 @@
  *      MA 02110-1301, USA.
  */
 
-#include <dbus/dbus-glib.h>
-#include <libhal.h>
-#include <libhal-storage.h>
 #include <string.h>
+#include <libgnomevfs/gnome-vfs.h>
 
 #include "devices.h"
 #include "gui.h"
 
-DBusGConnection *conn;
-DBusError err;
-LibHalContext *ctx;
-LibHalDrive *drive;
+GnomeVFSVolumeMonitor *monitor;
+
+
+void volume_mounted (GnomeVFSVolumeMonitor *volume_monitor, GnomeVFSVolume *volume, gpointer user_data)
+{
+	gchar *volume_name;
+	gulong volume_id;
+	
+	volume_name = gnome_vfs_volume_get_display_name (volume);
+	volume_id = gnome_vfs_volume_get_id (volume);
+	
+	g_debug ("Volume '%s' mounted!", volume_name);
+	gui_device_insert (volume_name, volume_id);
+}
+
+
+void volume_unmounted (GnomeVFSVolumeMonitor *volume_monitor, GnomeVFSVolume *volume, gpointer user_data)
+{
+	gchar *volume_name;
+	gulong volume_id;
+	
+	volume_name = gnome_vfs_volume_get_display_name (volume);
+	volume_id = gnome_vfs_volume_get_id (volume);
+	
+	g_debug ("Volume '%s' unmounted!", volume_name);
+	gui_device_remove (volume_id);
+}
 
 
 // Geräte initialisieren
 void devices_init(void)
-{	
-	dbus_error_init (&err);	
-	if ((ctx = libhal_ctx_new ()) == NULL) {
-		g_error ("Error 1");
+{
+	if (!gnome_vfs_initialized ()) {
+		if (!gnome_vfs_init ()) {
+			g_error ("Konnte GNOMEVFS nicht initialisieren!");
+		}
 	}
-	if (!libhal_ctx_set_dbus_connection (ctx, dbus_bus_get (DBUS_BUS_SYSTEM, &err))) {
-		g_error ("Error 2");
-	}
-	if (!libhal_ctx_init (ctx, &err)) {
-		g_error ("Error 3");
-	}
+	
+	monitor = gnome_vfs_get_volume_monitor ();
+	
+	g_signal_connect (monitor, "volume-mounted", G_CALLBACK(volume_mounted), NULL);
+	g_signal_connect (monitor, "volume-unmounted", G_CALLBACK(volume_unmounted), NULL);
 }
 
 
 // Füge die Geräte dem GUI hinzu
 void devices_fill_gui (void)
 {
-	gint num_udis;
-	char **udis;
-	gchar *udi, *storage, *mntpoint, *partition;
-	LibHalPropertySet *ps;
-	
-	udis = libhal_find_device_by_capability (ctx, "volume", &num_udis, &err);
-	if (dbus_error_is_set (&err)) {
-		g_error ("DBus error!");
-	}
+	GList *l, *volumes;
+	GnomeVFSVolume *volume;
+	GnomeVFSDrive *drive;
+	gchar *volume_name;
+	gchar *drive_name;
+	gchar *fs;
+	gulong volume_id;
 
-	//g_debug ("found %d possible devices", num_udis);
+	volumes = gnome_vfs_volume_monitor_get_mounted_volumes (monitor);
 	
-	gint i;
-	gint count = 0;
-	gchar *name;
-	for (i = 0; i < num_udis; i++) {
-		udi = g_strdup (udis[i]);
-		//g_debug ("device %i udi: %s", i+1, udi);
-		
-		storage = libhal_device_get_property_string (ctx, udi, "block.storage_device", &err);
-		//g_debug ("storage: %s", storage);
-		
-		ps = libhal_device_get_all_properties (ctx, storage, &err);
-		if (!libhal_ps_get_bool (ps, "storage.removable.media_available")) {
-			//g_debug ("Kriterium 2");
-			continue;
+	for (l = volumes; l != NULL; l = l->next) {
+		volume = l->data;
+		if (gnome_vfs_volume_is_user_visible (volume)) {
+			if (!gnome_vfs_volume_is_read_only (volume)) {
+				fs = gnome_vfs_volume_get_filesystem_type (volume);
+				if (!strcmp (fs, "fat") || !strcmp (fs, "vfat")) {
+					drive = gnome_vfs_volume_get_drive (volume);
+					drive_name = gnome_vfs_drive_get_display_name (drive);					
+					volume_name = gnome_vfs_volume_get_display_name (volume);
+					volume_id = gnome_vfs_volume_get_id (volume);
+					gui_device_insert (volume_name, volume_id);
+					g_debug ("Volume: %s (Filesystem: %s, Drive: %s)", volume_name, fs, drive_name);
+				}
+			}
 		}
-		if (libhal_ps_get_bool (ps, "block.is_volume")) {
-			//g_debug ("Kriterium 3");
-			continue;
-		}
-		if (strcmp(libhal_ps_get_string (ps, "storage.bus"), "usb")) {
-			//g_debug ("Kriterium 4");
-			continue;
-		}		
-		if (libhal_ps_get_bool (ps, "volume.is_mounted_read_only")) {
-			//g_debug ("Kriterium 5");
-			continue;
-		}
-		
-		name = g_strdup_printf ("%s %s", libhal_ps_get_string (ps, "storage.vendor"),
-										 libhal_ps_get_string (ps, "info.product"));						
-		mntpoint = libhal_device_get_property_string (ctx, udi, "volume.mount_point", &err);
-		partition = libhal_device_get_property_string (ctx, udi, "block.device", &err);
-		
-		gui_device_insert (name, mntpoint, partition);
-		
-		g_free (name);
-		
-		count++;
+		gnome_vfs_volume_unref (volume);
 	}
 	
-	if (count == 0) {
-		gui_device_empty_list ();
-	}
-	
-	libhal_free_string_array (udis);
+	g_list_free (volumes);
 }
+
+
+

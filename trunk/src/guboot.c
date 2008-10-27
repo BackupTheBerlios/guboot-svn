@@ -202,7 +202,7 @@ gboolean guboot_extract_iso (gchar *isofile, gchar *destination)
 	
 	g_message ("Soweit alles ok!");
 	
-	//return FALSE;
+	return FALSE;
 	
 	
 	gint ret;

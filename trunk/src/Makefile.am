@@ -1,8 +1,5 @@
-INCLUDES = $(GLIB_CFLAGS) \
-		   $(GTK_CFLAGS) \
-		   $(GLADE_CFLAGS) \
-		   $(HAL_CFLAGS) \
-		   $(DBUS_CFLAGS)
+INCLUDES = $(GTK_CFLAGS) \
+		   $(GNOMEVFS_CFLAGS)
 
 AM_CFLAGS = -Wall -g
 
@@ -22,9 +19,6 @@ guboot_SOURCES = main.c \
 
 guboot_LDFLAGS = -export-dynamic
 
-guboot_LDADD = $(GLIB_LIBS) \
-			   $(GTK_LIBS) \
-			   $(GLADE_LIBS) \
-			   $(HAL_LIBS) \
-			   $(DBUS_LIBS) \
+guboot_LDADD = $(GTK_LIBS) \
+			   $(GNOMEVFS_LIBS) \
 			   bk/libbk.la

@@ -25,34 +25,33 @@
 #include <string.h>
 
 
-#define INSTALLED_GLADE GUBOOT_DIR"/guboot.glade"
+#define INSTALLED_UI	GUBOOT_DIR"/guboot.ui"
 #define INSTALLED_ICON  ICON_DIR"/guboot.png"
 
 
 enum 
 {
 	COL_DEV_NAME,
-	COL_DEV_MNT,
-	COL_DEV_PART,
+	COL_DEV_ID,
 	COLS_DEV
 };
 
 
-GladeXML *glade;
+GtkBuilder *ui;
 GtkWidget *window_main;
 GtkButton *button_create;
 GtkFileChooserButton *chooser;
 GtkComboBox *combo_devs;
 GtkCheckButton *check_delete;
 GtkListStore *model_devs;
-gboolean has_devices;
+gint devices_count;
 
 
-// Get Widget from Glade
+// Get Widget from UI
 GtkWidget* gui_get_widget (gchar *name)
 {
 	GtkWidget *widget;
-	widget = glade_xml_get_widget(glade, name);
+	widget = (GtkWidget*) gtk_builder_get_object (ui, name);
 	if (widget == NULL) {
 		g_error ("Das Widget '%s' konnte nicht geholt werden!", name);
 	}
@@ -88,24 +87,22 @@ void gui_init (int argc, char *argv[])
 	gtk_init(&argc, &argv);
 
 	// Variablen initialisieren
-	glade = NULL;
-	has_devices = FALSE;
+	devices_count = 0;
 	
-	// Glade initialisieren
-	glade_init();
+	// UI initialisieren
+	ui = gtk_builder_new ();
 	
-	// Glade Datei laden
-	GString* gladefile = g_string_new(g_get_current_dir());
-	gladefile = g_string_append(gladefile, "/data/guboot.glade");
-	if (g_file_test(gladefile->str, G_FILE_TEST_EXISTS) == FALSE) {
-		gladefile = g_string_assign(gladefile, INSTALLED_GLADE);
-		if (g_file_test(gladefile->str, G_FILE_TEST_EXISTS) == FALSE) {
-			g_error ("Fehler beim Laden der Glade Datei!");
+	// UI Datei laden
+	GString* uifile = g_string_new(g_get_current_dir());
+	uifile = g_string_append(uifile, "/data/guboot.ui");
+	if (g_file_test(uifile->str, G_FILE_TEST_EXISTS) == FALSE) {
+		uifile = g_string_assign(uifile, INSTALLED_UI);
+		if (g_file_test(uifile->str, G_FILE_TEST_EXISTS) == FALSE) {
+			g_error ("Fehler beim Laden der UI Datei!");
 		}
 	}
-	glade = glade_xml_new(gladefile->str, NULL, NULL);
-	if (glade == NULL) {
-		g_error ("Fehler beim Laden der Glade Datei!");
+	if (!gtk_builder_add_from_file (ui, uifile->str, NULL)) {
+		g_error ("Fehler beim Laden der UI Datei!");
 	}
 	
 	// Widgets holen
@@ -122,7 +119,7 @@ void gui_init (int argc, char *argv[])
 	}
 
 	// Verbinde die Signale automatisch mit dem GUI
-	glade_xml_signal_autoconnect(glade);
+	gtk_builder_connect_signals (ui, NULL);
 	
 	// Filter für den Image Auswahldialog
 	GtkFileFilter *filter;
@@ -138,7 +135,7 @@ void gui_init (int argc, char *argv[])
 	}
 	
 	// Devices Combobox initialisieren
-	model_devs = gtk_list_store_new (COLS_DEV, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+	model_devs = gtk_list_store_new (COLS_DEV, G_TYPE_STRING, G_TYPE_LONG);
 	gtk_combo_box_set_model (GTK_COMBO_BOX(combo_devs), GTK_TREE_MODEL(model_devs));
 }
 
@@ -158,24 +155,43 @@ gchar* gui_image_get_file (void)
 
 
 // Fügt ein Device in die Auswahlbox ein
-void gui_device_insert (gchar *name, gchar *mntpoint, gchar *partition)
+void gui_device_insert (gchar *name, gulong id)
 {
 	GtkTreeIter iter;
 	gchar *label;
 	
-	if (name == NULL && mntpoint == NULL && partition == NULL) {
-		label = g_strdup ("Kein USB Stick gefunden");
-	} else {
-		label = g_strdup_printf ("%s (%s)", mntpoint, name);
-		//g_debug ("Device '%s' added to the device list", name);
-		has_devices = TRUE;
+	if (name == NULL || !strcmp (name, "") || id == 0) {
+		return;
 	}
-	gtk_list_store_append (model_devs, &iter);
-	gtk_list_store_set (model_devs, &iter, COL_DEV_NAME, g_strdup (label),
-										   COL_DEV_MNT, g_strdup (mntpoint),
-										   COL_DEV_PART, g_strdup (partition), -1);
+	
+	label = g_strdup (name);
+		
+	gtk_list_store_append (GTK_LIST_STORE (model_devs), &iter);
+	gtk_list_store_set (GTK_LIST_STORE (model_devs), &iter, COL_DEV_NAME, label,
+										   					COL_DEV_ID, id, -1);
 	gtk_combo_box_set_active_iter (GTK_COMBO_BOX (combo_devs), &iter);
 	g_free (label);
+	
+	devices_count = devices_count + 1;
+}
+
+
+// Entfernt ein Device aus der Auswahlbox
+void gui_device_remove (gulong id)
+{
+	GtkTreeIter iter;
+	
+	if (id == 0) {
+		return;
+	}
+		
+	/*gtk_list_store_append (GTK_LIST_STORE (model_devs), &iter);
+	gtk_list_store_set (GTK_LIST_STORE (model_devs), &iter, COL_DEV_NAME, label,
+										   					COL_DEV_ID, id, -1);
+	gtk_combo_box_set_active_iter (GTK_COMBO_BOX (combo_devs), &iter);
+	g_free (label);*/
+	
+	devices_count = devices_count - 1;
 }
 
 
@@ -197,37 +213,43 @@ gchar* gui_device_get_name (void)
 // Gibt den Mountpunkt (z.B. /media/disk) des selektierten Device zurück
 gchar* gui_device_get_mntpoint (void)
 {
-	gchar *mntpoint;
+	/*gchar *mntpoint;
 	GtkTreeIter iter;
 	GtkListStore *model;
 	
 	model = (GtkListStore*)gtk_combo_box_get_model (GTK_COMBO_BOX(combo_devs));
 	gtk_combo_box_get_active_iter (GTK_COMBO_BOX(combo_devs), &iter);	
-	gtk_tree_model_get (GTK_TREE_MODEL(model), &iter, 1, &mntpoint, -1);
+	gtk_tree_model_get (GTK_TREE_MODEL(model), &iter, 1, &mntpoint, -1);*/
 	
-	return g_strdup (mntpoint);
+	return g_strdup ("none");
 }
 
 
 // Gibt den Partitionsnamen (z.B. /dev/sdf1) des selektierten Device zurück
 gchar* gui_device_get_partition (void)
 {
-	gchar *partition;
+	/*gchar *partition;
 	GtkTreeIter iter;
 	
 	gtk_combo_box_get_active_iter (GTK_COMBO_BOX (combo_devs), &iter);	
-	gtk_tree_model_get (GTK_TREE_MODEL (model_devs), &iter, COL_DEV_PART, &partition, -1);
+	gtk_tree_model_get (GTK_TREE_MODEL (model_devs), &iter, COL_DEV_PART, &partition, -1);*/
 	
-	return g_strdup (partition);
+	return g_strdup ("none");
 }
 
 
 // Leer das Device Feld und setzt ein Defaultwert
 void gui_device_empty_list (void)
 {
+	GtkTreeIter iter;
+	
 	gtk_list_store_clear (GTK_LIST_STORE (model_devs));
-	gui_device_insert (NULL, NULL, NULL);
-	has_devices = FALSE;
+	gtk_list_store_append (GTK_LIST_STORE (model_devs), &iter);
+	gtk_list_store_set (GTK_LIST_STORE (model_devs), &iter, COL_DEV_NAME, "Kein USB Stick vorhanden!",
+										   					COL_DEV_ID, 0, -1);
+	gtk_combo_box_set_active_iter (GTK_COMBO_BOX (combo_devs), &iter);
+	
+	devices_count = 0;
 }
 
 
@@ -241,7 +263,7 @@ gboolean gui_delete_checked (void)
 // Event-Handler für den Erstellen Button
 void on_button_create_clicked (GtkWidget *widget, gpointer user_data)
 {
-	if (!gui_image_get_file () || !has_devices) {
+	if (!gui_image_get_file () || devices_count < 1) {
 		gui_msg_dialog ("Kein Image oder kein USB Stick vorhanden!", GTK_MESSAGE_INFO);
 		return;
 	}

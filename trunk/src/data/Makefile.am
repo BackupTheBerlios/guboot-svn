@@ -1,6 +1,6 @@
 # App Data
 sharedir = $(prefix)/share/guboot
-share_DATA = guboot.glade		 
+share_DATA = guboot.ui
 
 # App Icon
 pixmapdir = $(prefix)/share/pixmaps
