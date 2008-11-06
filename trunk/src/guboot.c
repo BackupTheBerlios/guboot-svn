@@ -164,21 +164,21 @@ gboolean guboot_extract_iso (gchar *isofile, gchar *destination)
     /* initialise volInfo, set it up to scan for duplicate files */
     rc = bk_init_vol_info(&volInfo, true);
     if(rc <= 0) {
-		g_warning (bk_get_error_string(rc));
+		g_warning ("%s", bk_get_error_string (rc));
 		return FALSE;
 	}
 	
 	/* open the iso file (supplied as argument 1) */
-    rc = bk_open_image(&volInfo, isofile);
+    rc = bk_open_image (&volInfo, isofile);
     if(rc <= 0) {
-		g_warning (bk_get_error_string(rc));
+		g_warning ("%s", bk_get_error_string (rc));
 		return FALSE;
 	}
     
     /* read information about the volume (required before reading directory tree) */
-    rc = bk_read_vol_info(&volInfo);
+    rc = bk_read_vol_info (&volInfo);
     if(rc <= 0) {
-		g_warning (bk_get_error_string(rc));
+		g_warning ("%s", bk_get_error_string (rc));
 		return FALSE;
 	}
 	

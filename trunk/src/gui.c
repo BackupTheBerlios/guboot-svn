@@ -75,7 +75,7 @@ void gui_msg_dialog (gchar *msg, GtkMessageType type)
 {
 	GtkWidget *dlg;
 	dlg = gtk_message_dialog_new (GTK_WINDOW (window_main), GTK_DIALOG_MODAL,
-								  type, GTK_BUTTONS_OK, msg);
+								  type, GTK_BUTTONS_OK, "%s", msg);
 	gtk_dialog_run (GTK_DIALOG (dlg));
 	gtk_widget_destroy (dlg);
 }
