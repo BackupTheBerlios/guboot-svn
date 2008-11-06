@@ -161,7 +161,7 @@ void gui_device_insert (const gchar *name, const gchar *uuid)
 	GtkTreeIter iter;
 	
 	if (name == NULL || !strcmp (name, "") || uuid == NULL || !strcmp (uuid, "")) {
-		g_warning ("Daten sind nicht komplett!");
+		//g_warning ("Daten sind nicht komplett!");
 		return;
 	}
 		

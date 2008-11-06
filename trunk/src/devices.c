@@ -28,29 +28,29 @@
 GVolumeMonitor *monitor;
 
 
-void volume_added (GVolumeMonitor *monitor, GVolume *volume, gpointer user_data)
+void mount_added (GVolumeMonitor *monitor, GMount *mount, gpointer data)
 {
-	gchar *volume_name;
-	gchar *volume_uuid;
+	gchar *name;
+	gchar *uuid;
 	
-	volume_name = g_volume_get_name (volume);
-	volume_uuid = g_volume_get_uuid (volume);
+	name = g_mount_get_name (mount);
+	uuid = g_mount_get_uuid (mount);
 	
-	g_debug ("Volume '%s' added!", volume_name);
-	//gui_device_insert (volume_name, volume_id);
+	g_debug ("Mount '%s' added!", name);
+	gui_device_insert (name, uuid);
 }
 
 
-void volume_removed (GVolumeMonitor *monitor, GVolume *volume, gpointer user_data)
+void mount_removed (GVolumeMonitor *monitor, GMount *mount, gpointer data)
 {
-	gchar *volume_name;
-	gchar *volume_uuid;
+	gchar *name;
+	gchar *uuid;
 	
-	volume_name = g_volume_get_name (volume);
-	volume_uuid = g_volume_get_uuid (volume);
+	name = g_mount_get_name (mount);
+	uuid = g_mount_get_uuid (mount);
 	
-	g_debug ("Volume '%s' removed!", volume_name);
-	//gui_device_remove (volume_id);
+	g_debug ("Mount '%s' removed!", name);
+	//gui_device_remove (uuid);
 }
 
 
@@ -59,8 +59,8 @@ void devices_init(void)
 {
 	monitor = g_volume_monitor_get ();
 	
-	g_signal_connect (monitor, "volume-added", G_CALLBACK(volume_added), NULL);
-	g_signal_connect (monitor, "volume-removed", G_CALLBACK(volume_removed), NULL);
+	g_signal_connect (monitor, "mount-added", G_CALLBACK(mount_added), NULL);
+	g_signal_connect (monitor, "mount-removed", G_CALLBACK(mount_removed), NULL);
 }
 
 
@@ -69,8 +69,8 @@ void devices_fill_gui (void)
 {
 	GList *l, *mounts;
 	GMount *mount;
-	GDrive *drive;
-	gchar *drive_name;
+	//GDrive *drive;
+	//gchar *drive_name;
 	gchar *mount_name;
 	gchar *mount_uuid;
 	//gchar *fs;
@@ -83,12 +83,12 @@ void devices_fill_gui (void)
 			//if (!gnome_vfs_volume_is_read_only (volume)) {
 				//fs = gnome_vfs_volume_get_filesystem_type (volume);
 				//if (!strcmp (fs, "fat") || !strcmp (fs, "vfat")) {
-					drive = g_mount_get_drive (mount);
-					drive_name = g_drive_get_name  (drive);					
+					//drive = g_mount_get_drive (mount);
+					//drive_name = g_drive_get_name  (drive);					
 					mount_name = g_mount_get_name (mount);
 					mount_uuid = g_mount_get_uuid (mount);
+					g_debug ("Volume: %s (UUID: %s)", mount_name, mount_uuid);
 					gui_device_insert (mount_name, mount_uuid);
-					g_debug ("Volume: %s / UUID: %s (Drive: %s)", mount_name, mount_uuid, drive_name);
 				//}
 			//}
 		//}
