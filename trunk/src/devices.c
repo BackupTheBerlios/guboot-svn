@@ -27,8 +27,11 @@
 
 GVolumeMonitor *monitor;
 
+#define MOUNT_ADD    1
+#define MOUNT_REMOVE 2
 
-void mount_added (GVolumeMonitor *monitor, GMount *mount, gpointer data)
+
+void mount_change (GVolumeMonitor *monitor, GMount *mount, gpointer data)
 {
 	gchar *name;
 	gchar *uuid;
@@ -36,21 +39,13 @@ void mount_added (GVolumeMonitor *monitor, GMount *mount, gpointer data)
 	name = g_mount_get_name (mount);
 	uuid = g_mount_get_uuid (mount);
 	
-	g_debug ("Mount '%s' added!", name);
-	gui_device_insert (name, uuid);
-}
-
-
-void mount_removed (GVolumeMonitor *monitor, GMount *mount, gpointer data)
-{
-	gchar *name;
-	gchar *uuid;
-	
-	name = g_mount_get_name (mount);
-	uuid = g_mount_get_uuid (mount);
-	
-	g_debug ("Mount '%s' removed!", name);
-	//gui_device_remove (uuid);
+	if ((gint)data == MOUNT_ADD) {
+		g_debug ("%s added!", name);
+		gui_device_insert (uuid, name);
+	} else {
+		g_debug ("%s removed!", name);
+		gui_device_remove (uuid);
+	}
 }
 
 
@@ -59,8 +54,8 @@ void devices_init(void)
 {
 	monitor = g_volume_monitor_get ();
 	
-	g_signal_connect (monitor, "mount-added", G_CALLBACK(mount_added), NULL);
-	g_signal_connect (monitor, "mount-removed", G_CALLBACK(mount_removed), NULL);
+	g_signal_connect (monitor, "mount-added", G_CALLBACK(mount_change), (gpointer)MOUNT_ADD);
+	g_signal_connect (monitor, "mount-removed", G_CALLBACK(mount_change), (gpointer)MOUNT_REMOVE);
 }
 
 
@@ -69,29 +64,12 @@ void devices_fill_gui (void)
 {
 	GList *l, *mounts;
 	GMount *mount;
-	//GDrive *drive;
-	//gchar *drive_name;
-	gchar *mount_name;
-	gchar *mount_uuid;
-	//gchar *fs;
 
 	mounts = g_volume_monitor_get_mounts (monitor);
 	
 	for (l = mounts; l != NULL; l = l->next) {
 		mount = l->data;
-		//if (gnome_vfs_volume_is_user_visible (volume)) {
-			//if (!gnome_vfs_volume_is_read_only (volume)) {
-				//fs = gnome_vfs_volume_get_filesystem_type (volume);
-				//if (!strcmp (fs, "fat") || !strcmp (fs, "vfat")) {
-					//drive = g_mount_get_drive (mount);
-					//drive_name = g_drive_get_name  (drive);					
-					mount_name = g_mount_get_name (mount);
-					mount_uuid = g_mount_get_uuid (mount);
-					g_debug ("Volume: %s (UUID: %s)", mount_name, mount_uuid);
-					gui_device_insert (mount_name, mount_uuid);
-				//}
-			//}
-		//}
+		mount_change (monitor, mount, (gpointer)MOUNT_ADD);
 		g_object_unref (mount);
 	}
 	

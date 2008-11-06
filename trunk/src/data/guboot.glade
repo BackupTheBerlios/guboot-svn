@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.4.5 on Sat Oct 18 19:37:15 2008 -->
+<!--Generated with glade3 3.4.5 on Thu Nov  6 20:19:51 2008 -->
 <glade-interface>
   <widget class="GtkWindow" id="window_main">
     <property name="visible">True</property>
@@ -159,6 +159,7 @@ angeben, ob die vorhandenen Daten gelöscht werden sollten.</property>
             <child>
               <widget class="GtkButton" id="button_create">
                 <property name="visible">True</property>
+                <property name="sensitive">False</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <property name="label" translatable="yes">USB Boot Stick erstellen</property>

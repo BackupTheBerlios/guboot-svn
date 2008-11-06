@@ -30,9 +30,10 @@ void gui_init (int argc, char *argv[]);
 
 gchar* gui_image_get_file (void);
 
-void gui_device_insert (const gchar *name, const gchar *uuid);
-void gui_device_remove (gulong id);
+void gui_device_insert (const gchar *uuid, const gchar *name);
+void gui_device_remove (const gchar *uuid);
 void gui_device_empty_list (void);
+
 gchar* gui_device_get_name (void);
 gchar* gui_device_get_mntpoint (void);
 gchar* gui_device_get_partition (void);

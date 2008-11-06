@@ -32,7 +32,7 @@
 enum 
 {
 	COL_DEV_NAME,
-	COL_DEV_ID,
+	COL_DEV_UUID,
 	COLS_DEV
 };
 
@@ -60,13 +60,12 @@ GtkWidget* gui_get_widget (gchar *name)
 
 
 // Enabled oder disabled den Startbutton
-void gui_createbutton_set_active (gboolean active)
+gboolean gui_ready_for_create (void)
 {
-	if (active) {
-		gtk_widget_set_state (GTK_WIDGET (button_create), GTK_STATE_NORMAL);
-	} else {
-		gtk_widget_set_state (GTK_WIDGET (button_create), GTK_STATE_INSENSITIVE);
+	if (devices_count > 0 && gui_image_get_file ()) {
+		return TRUE;
 	}
+	return FALSE;
 }
 
 
@@ -156,40 +155,49 @@ gchar* gui_image_get_file (void)
 
 
 // Fügt ein Device in die Auswahlbox ein
-void gui_device_insert (const gchar *name, const gchar *uuid)
+void gui_device_insert (const gchar *uuid, const gchar *name)
 {
 	GtkTreeIter iter;
 	
 	if (name == NULL || !strcmp (name, "") || uuid == NULL || !strcmp (uuid, "")) {
-		//g_warning ("Daten sind nicht komplett!");
 		return;
 	}
 		
 	gtk_list_store_append (GTK_LIST_STORE (model_devs), &iter);
 	gtk_list_store_set (GTK_LIST_STORE (model_devs), &iter, COL_DEV_NAME, name,
-										   					COL_DEV_ID, uuid, -1);
+										   					COL_DEV_UUID, uuid, -1);
 	gtk_combo_box_set_active_iter (GTK_COMBO_BOX (combo_devs), &iter);
 	
-	devices_count = devices_count + 1;
+	if (gui_ready_for_create ()) {
+		gtk_widget_set_sensitive (GTK_WIDGET (button_create), TRUE);
+	}
+	devices_count++;
 }
 
 
 // Entfernt ein Device aus der Auswahlbox
-void gui_device_remove (gulong id)
+void gui_device_remove (const gchar *uuid)
 {
-	//GtkTreeIter iter;
+	GtkTreeIter iter;
+	gchar *value;
 	
-	if (id == 0) {
-		return;
-	}
+	gtk_tree_model_get_iter_first (GTK_TREE_MODEL (model_devs), &iter);
+	
+	do {
+		gtk_tree_model_get (GTK_TREE_MODEL (model_devs), &iter, COL_DEV_UUID, &value, -1);
+		g_debug ("Wird entfernt: %s", value);
 		
-	/*gtk_list_store_append (GTK_LIST_STORE (model_devs), &iter);
-	gtk_list_store_set (GTK_LIST_STORE (model_devs), &iter, COL_DEV_NAME, label,
-										   					COL_DEV_ID, id, -1);
-	gtk_combo_box_set_active_iter (GTK_COMBO_BOX (combo_devs), &iter);
-	g_free (label);*/
+		if (!strcmp (value, uuid)) {
+			gtk_list_store_remove (model_devs, &iter);
+			gtk_tree_model_get_iter_first (GTK_TREE_MODEL (model_devs), &iter);
+		}
+		
+	} while (gtk_tree_model_iter_next (GTK_TREE_MODEL (model_devs), &iter));
 	
-	devices_count = devices_count - 1;
+	devices_count--;
+	if (!gui_ready_for_create ()) {
+		gtk_widget_set_sensitive (GTK_WIDGET (button_create), FALSE);
+	}
 }
 
 
@@ -244,7 +252,7 @@ void gui_device_empty_list (void)
 	gtk_list_store_clear (GTK_LIST_STORE (model_devs));
 	gtk_list_store_append (GTK_LIST_STORE (model_devs), &iter);
 	gtk_list_store_set (GTK_LIST_STORE (model_devs), &iter, COL_DEV_NAME, "Kein USB Stick vorhanden!",
-										   					COL_DEV_ID, 0, -1);
+										   					COL_DEV_UUID, 0, -1);
 	gtk_combo_box_set_active_iter (GTK_COMBO_BOX (combo_devs), &iter);
 	
 	devices_count = 0;
