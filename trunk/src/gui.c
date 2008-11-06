@@ -23,10 +23,10 @@
 #include "guboot.h"
 
 #include <string.h>
+#include <glade/glade.h>
 
-
-#define INSTALLED_UI	GUBOOT_DIR"/guboot.ui"
-#define INSTALLED_ICON  ICON_DIR"/guboot.png"
+#define INSTALLED_GLADE  GUBOOT_DIR"/guboot.glade"
+#define INSTALLED_ICON   ICON_DIR"/guboot.png"
 
 
 enum 
@@ -37,7 +37,7 @@ enum
 };
 
 
-GtkBuilder *ui;
+GladeXML *glade;
 GtkWidget *window_main;
 GtkButton *button_create;
 GtkFileChooserButton *chooser;
@@ -51,7 +51,7 @@ gint devices_count;
 GtkWidget* gui_get_widget (gchar *name)
 {
 	GtkWidget *widget;
-	widget = (GtkWidget*) gtk_builder_get_object (ui, name);
+	widget = glade_xml_get_widget(glade, name);
 	if (widget == NULL) {
 		g_error ("Das Widget '%s' konnte nicht geholt werden!", name);
 	}
@@ -89,20 +89,21 @@ void gui_init (int argc, char *argv[])
 	// Variablen initialisieren
 	devices_count = 0;
 	
-	// UI initialisieren
-	ui = gtk_builder_new ();
+	// Glade initialisieren
+	glade_init();
 	
 	// UI Datei laden
-	GString* uifile = g_string_new(g_get_current_dir());
-	uifile = g_string_append(uifile, "/data/guboot.ui");
-	if (g_file_test(uifile->str, G_FILE_TEST_EXISTS) == FALSE) {
-		uifile = g_string_assign(uifile, INSTALLED_UI);
-		if (g_file_test(uifile->str, G_FILE_TEST_EXISTS) == FALSE) {
-			g_error ("Fehler beim Laden der UI Datei!");
+	GString* gladefile = g_string_new (g_get_current_dir ());
+	gladefile = g_string_append (gladefile, "/data/guboot.glade");
+	if (g_file_test (gladefile->str, G_FILE_TEST_EXISTS) == FALSE) {
+		gladefile = g_string_assign (gladefile, INSTALLED_GLADE);
+		if (g_file_test (gladefile->str, G_FILE_TEST_EXISTS) == FALSE) {
+			g_error ("Glade Datei ist nicht vorhanden!");
 		}
 	}
-	if (!gtk_builder_add_from_file (ui, uifile->str, NULL)) {
-		g_error ("Fehler beim Laden der UI Datei!");
+	glade = glade_xml_new (gladefile->str, NULL, NULL);
+	if (glade == NULL) {
+		g_error ("Fehler beim Laden der Glade Datei!");
 	}
 	
 	// Widgets holen
@@ -119,8 +120,8 @@ void gui_init (int argc, char *argv[])
 	}
 
 	// Verbinde die Signale automatisch mit dem GUI
-	gtk_builder_connect_signals (ui, NULL);
-	
+	glade_xml_signal_autoconnect(glade);
+
 	// Filter für den Image Auswahldialog
 	GtkFileFilter *filter;
 	filter = gtk_file_filter_new ();
@@ -135,7 +136,7 @@ void gui_init (int argc, char *argv[])
 	}
 	
 	// Devices Combobox initialisieren
-	model_devs = gtk_list_store_new (COLS_DEV, G_TYPE_STRING, G_TYPE_LONG);
+	model_devs = gtk_list_store_new (COLS_DEV, G_TYPE_STRING, G_TYPE_STRING);
 	gtk_combo_box_set_model (GTK_COMBO_BOX(combo_devs), GTK_TREE_MODEL(model_devs));
 }
 
@@ -155,22 +156,19 @@ gchar* gui_image_get_file (void)
 
 
 // Fügt ein Device in die Auswahlbox ein
-void gui_device_insert (gchar *name, gulong id)
+void gui_device_insert (const gchar *name, const gchar *uuid)
 {
 	GtkTreeIter iter;
-	gchar *label;
 	
-	if (name == NULL || !strcmp (name, "") || id == 0) {
+	if (name == NULL || !strcmp (name, "") || uuid == NULL || !strcmp (uuid, "")) {
+		g_warning ("Daten sind nicht komplett!");
 		return;
 	}
-	
-	label = g_strdup (name);
 		
 	gtk_list_store_append (GTK_LIST_STORE (model_devs), &iter);
-	gtk_list_store_set (GTK_LIST_STORE (model_devs), &iter, COL_DEV_NAME, label,
-										   					COL_DEV_ID, id, -1);
+	gtk_list_store_set (GTK_LIST_STORE (model_devs), &iter, COL_DEV_NAME, name,
+										   					COL_DEV_ID, uuid, -1);
 	gtk_combo_box_set_active_iter (GTK_COMBO_BOX (combo_devs), &iter);
-	g_free (label);
 	
 	devices_count = devices_count + 1;
 }
@@ -179,7 +177,7 @@ void gui_device_insert (gchar *name, gulong id)
 // Entfernt ein Device aus der Auswahlbox
 void gui_device_remove (gulong id)
 {
-	GtkTreeIter iter;
+	//GtkTreeIter iter;
 	
 	if (id == 0) {
 		return;

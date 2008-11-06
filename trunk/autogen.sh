@@ -1,8 +1,8 @@
 #!/bin/sh
-echo "Running libtoolize"
-libtoolize --force
 echo "Running aclocal"
 aclocal
+echo "Running libtoolize"
+libtoolize --force
 echo "Running autoheader"
 autoheader
 echo "Running automake"

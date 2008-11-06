@@ -1,7 +1,8 @@
 INCLUDES = $(GTK_CFLAGS) \
-		   $(GNOMEVFS_CFLAGS)
+		   $(GLADE_CFLAGS) \
+		   $(GIO_CFLAGS)
 
-AM_CFLAGS = -Wall -g
+AM_CFLAGS = -Wall -Werror -g
 
 AM_CPPFLAGS = -DINSTALL_PREFIX=\"$(prefix)\" \
 			  -DGUBOOT_DIR\=\"$(datadir)/guboot\" \
@@ -20,5 +21,6 @@ guboot_SOURCES = main.c \
 guboot_LDFLAGS = -export-dynamic
 
 guboot_LDADD = $(GTK_LIBS) \
-			   $(GNOMEVFS_LIBS) \
+			   $(GLADE_LIBS) \
+			   $(GIO_LIBS) \
 			   bk/libbk.la

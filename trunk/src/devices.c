@@ -20,88 +20,82 @@
  */
 
 #include <string.h>
-#include <libgnomevfs/gnome-vfs.h>
+#include <gio/gio.h>
 
 #include "devices.h"
 #include "gui.h"
 
-GnomeVFSVolumeMonitor *monitor;
+GVolumeMonitor *monitor;
 
 
-void volume_mounted (GnomeVFSVolumeMonitor *volume_monitor, GnomeVFSVolume *volume, gpointer user_data)
+void volume_added (GVolumeMonitor *monitor, GVolume *volume, gpointer user_data)
 {
 	gchar *volume_name;
-	gulong volume_id;
+	gchar *volume_uuid;
 	
-	volume_name = gnome_vfs_volume_get_display_name (volume);
-	volume_id = gnome_vfs_volume_get_id (volume);
+	volume_name = g_volume_get_name (volume);
+	volume_uuid = g_volume_get_uuid (volume);
 	
-	g_debug ("Volume '%s' mounted!", volume_name);
-	gui_device_insert (volume_name, volume_id);
+	g_debug ("Volume '%s' added!", volume_name);
+	//gui_device_insert (volume_name, volume_id);
 }
 
 
-void volume_unmounted (GnomeVFSVolumeMonitor *volume_monitor, GnomeVFSVolume *volume, gpointer user_data)
+void volume_removed (GVolumeMonitor *monitor, GVolume *volume, gpointer user_data)
 {
 	gchar *volume_name;
-	gulong volume_id;
+	gchar *volume_uuid;
 	
-	volume_name = gnome_vfs_volume_get_display_name (volume);
-	volume_id = gnome_vfs_volume_get_id (volume);
+	volume_name = g_volume_get_name (volume);
+	volume_uuid = g_volume_get_uuid (volume);
 	
-	g_debug ("Volume '%s' unmounted!", volume_name);
-	gui_device_remove (volume_id);
+	g_debug ("Volume '%s' removed!", volume_name);
+	//gui_device_remove (volume_id);
 }
 
 
 // Geräte initialisieren
 void devices_init(void)
 {
-	if (!gnome_vfs_initialized ()) {
-		if (!gnome_vfs_init ()) {
-			g_error ("Konnte GNOMEVFS nicht initialisieren!");
-		}
-	}
+	monitor = g_volume_monitor_get ();
 	
-	monitor = gnome_vfs_get_volume_monitor ();
-	
-	g_signal_connect (monitor, "volume-mounted", G_CALLBACK(volume_mounted), NULL);
-	g_signal_connect (monitor, "volume-unmounted", G_CALLBACK(volume_unmounted), NULL);
+	g_signal_connect (monitor, "volume-added", G_CALLBACK(volume_added), NULL);
+	g_signal_connect (monitor, "volume-removed", G_CALLBACK(volume_removed), NULL);
 }
 
 
 // Füge die Geräte dem GUI hinzu
 void devices_fill_gui (void)
 {
-	GList *l, *volumes;
-	GnomeVFSVolume *volume;
-	GnomeVFSDrive *drive;
-	gchar *volume_name;
+	GList *l, *mounts;
+	GMount *mount;
+	GDrive *drive;
 	gchar *drive_name;
-	gchar *fs;
-	gulong volume_id;
+	gchar *mount_name;
+	gchar *mount_uuid;
+	//gchar *fs;
 
-	volumes = gnome_vfs_volume_monitor_get_mounted_volumes (monitor);
+	mounts = g_volume_monitor_get_mounts (monitor);
 	
-	for (l = volumes; l != NULL; l = l->next) {
-		volume = l->data;
-		if (gnome_vfs_volume_is_user_visible (volume)) {
-			if (!gnome_vfs_volume_is_read_only (volume)) {
-				fs = gnome_vfs_volume_get_filesystem_type (volume);
-				if (!strcmp (fs, "fat") || !strcmp (fs, "vfat")) {
-					drive = gnome_vfs_volume_get_drive (volume);
-					drive_name = gnome_vfs_drive_get_display_name (drive);					
-					volume_name = gnome_vfs_volume_get_display_name (volume);
-					volume_id = gnome_vfs_volume_get_id (volume);
-					gui_device_insert (volume_name, volume_id);
-					g_debug ("Volume: %s (Filesystem: %s, Drive: %s)", volume_name, fs, drive_name);
-				}
-			}
-		}
-		gnome_vfs_volume_unref (volume);
+	for (l = mounts; l != NULL; l = l->next) {
+		mount = l->data;
+		//if (gnome_vfs_volume_is_user_visible (volume)) {
+			//if (!gnome_vfs_volume_is_read_only (volume)) {
+				//fs = gnome_vfs_volume_get_filesystem_type (volume);
+				//if (!strcmp (fs, "fat") || !strcmp (fs, "vfat")) {
+					drive = g_mount_get_drive (mount);
+					drive_name = g_drive_get_name  (drive);					
+					mount_name = g_mount_get_name (mount);
+					mount_uuid = g_mount_get_uuid (mount);
+					gui_device_insert (mount_name, mount_uuid);
+					g_debug ("Volume: %s / UUID: %s (Drive: %s)", mount_name, mount_uuid, drive_name);
+				//}
+			//}
+		//}
+		g_object_unref (mount);
 	}
 	
-	g_list_free (volumes);
+	g_list_free (mounts);
 }
 
 

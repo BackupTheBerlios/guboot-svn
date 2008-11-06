@@ -13,9 +13,13 @@ PKG_CHECK_MODULES(GTK, gtk+-2.0)
 AC_SUBST(GTK_LIBS)
 AC_SUBST(GTK_CFLAGS)
 
-PKG_CHECK_MODULES(GNOMEVFS, gnome-vfs-2.0)
-AC_SUBST(GNOMEVFS_LIBS)
-AC_SUBST(GNOMEVFS_CFLAGS)
+PKG_CHECK_MODULES(GLADE, libglade-2.0)
+AC_SUBST(GLADE_LIBS)
+AC_SUBST(GLADE_CFLAGS)
+
+PKG_CHECK_MODULES(GIO, gio-2.0)
+AC_SUBST(GIO_LIBS)
+AC_SUBST(GIO_CFLAGS)
 
 # Makefile output
 AC_OUTPUT([ Makefile \
@@ -26,18 +30,12 @@ AC_OUTPUT([ Makefile \
 
 # Nette Ausgabe
 AC_MSG_RESULT([
-  ************************************************************
- *  guboot $VERSION:  Automatic configuration OK.
-**
-**  Installation directories:
-**
-**     Program: ................. ${prefix}/bin
-**
-**************************************************************
-**
-**  Type 'make' to compile guboot.
-** 
-**  Have fun with guboot!
- *
-  ************************************************************
+*******************************************************
+*  $PACKAGE $VERSION:  Automatic configuration OK.
+*
+*  Installation directories:
+*     Program: ................. ${prefix}/bin
+*
+*  Type 'make' to compile $PACKAGE.
+*******************************************************
 ])  
