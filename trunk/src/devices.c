@@ -31,7 +31,7 @@ GVolumeMonitor *monitor;
 #define MOUNT_REMOVE 2
 
 
-void mount_change (GVolumeMonitor *monitor, GMount *mount, gpointer data)
+void mount_added (GVolumeMonitor *monitor, GMount *mount, gpointer data)
 {
 	gchar *name;
 	gchar *uuid;
@@ -39,13 +39,21 @@ void mount_change (GVolumeMonitor *monitor, GMount *mount, gpointer data)
 	name = g_mount_get_name (mount);
 	uuid = g_mount_get_uuid (mount);
 	
-	if ((gint)data == MOUNT_ADD) {
-		g_debug ("%s added!", name);
-		gui_device_insert (uuid, name);
-	} else {
-		g_debug ("%s removed!", name);
-		gui_device_remove (uuid);
-	}
+	g_debug ("%s added!", name);
+	gui_device_insert (uuid, name);
+}
+
+
+void mount_removed (GVolumeMonitor *monitor, GMount *mount, gpointer data)
+{
+	gchar *name;
+	gchar *uuid;
+	
+	name = g_mount_get_name (mount);
+	uuid = g_mount_get_uuid (mount);
+
+	g_debug ("%s removed!", name);
+	gui_device_remove (uuid);
 }
 
 
@@ -54,8 +62,8 @@ void devices_init(void)
 {
 	monitor = g_volume_monitor_get ();
 	
-	g_signal_connect (monitor, "mount-added", G_CALLBACK(mount_change), (gpointer)MOUNT_ADD);
-	g_signal_connect (monitor, "mount-removed", G_CALLBACK(mount_change), (gpointer)MOUNT_REMOVE);
+	g_signal_connect (monitor, "mount-added", G_CALLBACK(mount_added), NULL);
+	g_signal_connect (monitor, "mount-removed", G_CALLBACK(mount_removed), NULL);
 }
 
 
@@ -69,7 +77,7 @@ void devices_fill_gui (void)
 	
 	for (l = mounts; l != NULL; l = l->next) {
 		mount = l->data;
-		mount_change (monitor, mount, (gpointer)MOUNT_ADD);
+		mount_added (monitor, mount, NULL);
 		g_object_unref (mount);
 	}
 	
