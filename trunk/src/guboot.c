@@ -25,6 +25,8 @@
 /* need to include bk.h for access to bkisofs functions and structures */
 #include <stdio.h>
 #include "bk/bk.h"
+#include <gio/gio.h>
+#include <string.h>
 
 #include <stdlib.h>
 
@@ -109,6 +111,18 @@ gboolean guboot_modify_files (gchar *mntpoint)
 	g_free (command);
 	g_debug ("Return Wert von system Aufruf: %i", ret);
 	
+	command = g_strdup_printf ("mv %s/boot/isolinux/isolinux.cfg %s/boot/isolinux/syslinux.cfg", mntpoint, mntpoint);
+	g_debug ("Kommando: %s", command);
+	ret = system (command);						 
+	g_free (command);
+	g_debug ("Return Wert von system Aufruf: %i", ret);
+	
+	command = g_strdup_printf ("mv %s/boot/isolinux %s/boot/syslinux", mntpoint, mntpoint);
+	g_debug ("Kommando: %s", command);
+	ret = system (command);						 
+	g_free (command);
+	g_debug ("Return Wert von system Aufruf: %i", ret);
+	
 	return TRUE;
 }
 
@@ -117,40 +131,68 @@ gboolean guboot_modify_files (gchar *mntpoint)
 void readProgressUpdaterCbk(VolInfo* volInfo)
 {
     g_message ("Read progress updater");
+	
+	// Update UI
+	while (gtk_events_pending()) {
+		gtk_main_iteration();
+	}
 }
 
 
-void printNameAndContents(BkFileBase* base, int numSpaces)
+gboolean guboot_extract (VolInfo* volInfo, BkFileBase* base, gchar *dir)
 {
-    int count;
-    
-    /* print the spaces (indentation, for prettyness) */
-    for(count = 0; count < numSpaces; count++)
-        printf(" ");
-    
-    if(IS_DIR(base->posixFileMode))
-    {
-        /* print name of the directory */
-        printf("%s (directory)\n", base->name);
+    if (IS_DIR (base->posixFileMode)) {
+		/* print name of the directory */
+		//g_print ("%s (directory)\n", base->name);
+		
+		if (dir) {
+			dir = g_strdup_printf ("%s/%s", dir, base->name);
+			
+			g_debug ("dir: %s", dir);
+			
+			// create destination directory
+			gchar *destdir;
+			destdir = g_strdup_printf ("%s%s", gui_device_get_mntpoint (), dir);
+			g_debug ("destdir: %s", destdir);
+			
+			GFile *file;
+			file = g_file_new_for_path (destdir);
+			if (!g_file_make_directory (file, NULL, NULL)) {
+				//return FALSE;
+			}
+			
+		} else {
+			dir = g_strdup ("");
+			g_debug ("initial dir: %s", dir);
+		}
+		
+		
+
+		/* print all the directory's children */
+		BkFileBase* child = BK_DIR_PTR (base)->children;
+		while (child != NULL) {
+			if (!guboot_extract (volInfo, child, dir)) {
+				return FALSE;
+			}
+			child = child->next;
+		}
+    } else if (IS_REG_FILE (base->posixFileMode) || IS_SYMLINK (base->posixFileMode)) {
+        // extract this file
+        gchar *input, *output;
+        input = g_strdup_printf ("%s/%s", dir, base->name);
+        output = g_strdup_printf ("%s%s", gui_device_get_mntpoint (), dir);
+        g_debug ("extract: input: %s   output: %s", input, output);
         
-        /* print all the directory's children */
-        BkFileBase* child = BK_DIR_PTR(base)->children;
-        while(child != NULL)
-        {
-            printNameAndContents(child, numSpaces + 2);
-            child = child->next;
-        }
+        gint rc;
+        rc = bk_extract (volInfo, input, output, TRUE, readProgressUpdaterCbk);
+		if (rc <= 0) {
+			g_warning ("%s", bk_get_error_string (rc));
+			return FALSE;
+		}
+        
     }
-    else if(IS_REG_FILE(base->posixFileMode))
-    {
-        /* print name and size of the file */
-        printf("%s (regular file), size %u\n", base->name, BK_FILE_PTR(base)->size);
-    }
-    else if(IS_SYMLINK(base->posixFileMode))
-    {
-        /* print name and target of the symbolic link */
-        printf("%s -> %s (symbolic link)\n", base->name, BK_SYMLINK_PTR(base)->target);
-    }
+    
+    return TRUE;
 }
 
 
@@ -158,11 +200,10 @@ void printNameAndContents(BkFileBase* base, int numSpaces)
 gboolean guboot_extract_iso (gchar *isofile, gchar *destination)
 {
 	VolInfo volInfo;
-	
 	gint rc;
     
     /* initialise volInfo, set it up to scan for duplicate files */
-    rc = bk_init_vol_info(&volInfo, true);
+    rc = bk_init_vol_info (&volInfo, TRUE);
     if(rc <= 0) {
 		g_warning ("%s", bk_get_error_string (rc));
 		return FALSE;
@@ -183,43 +224,29 @@ gboolean guboot_extract_iso (gchar *isofile, gchar *destination)
 	}
 	
 	/* read the directory tree */
-    if(volInfo.filenameTypes & FNTYPE_ROCKRIDGE)
-        rc = bk_read_dir_tree(&volInfo, FNTYPE_ROCKRIDGE, true, readProgressUpdaterCbk);
-    else if(volInfo.filenameTypes & FNTYPE_JOLIET)
-        rc = bk_read_dir_tree(&volInfo, FNTYPE_JOLIET, false, readProgressUpdaterCbk);
-    else
-        rc = bk_read_dir_tree(&volInfo, FNTYPE_9660, false, readProgressUpdaterCbk);
-    if(rc <= 0) {
-		//g_warning (bk_get_error_string(rc));
+    if (volInfo.filenameTypes & FNTYPE_ROCKRIDGE) {
+        rc = bk_read_dir_tree (&volInfo, FNTYPE_ROCKRIDGE, true, readProgressUpdaterCbk);
+    } else if (volInfo.filenameTypes & FNTYPE_JOLIET) {
+        rc = bk_read_dir_tree (&volInfo, FNTYPE_JOLIET, false, readProgressUpdaterCbk);
+    } else {
+        rc = bk_read_dir_tree (&volInfo, FNTYPE_9660, false, readProgressUpdaterCbk);
+    }
+    if (rc <= 0) {
+		g_warning (bk_get_error_string (rc));
 		return FALSE;
 	}
 	
-	/* print the entire directory tree */
-    printNameAndContents (BK_BASE_PTR( &(volInfo.dirTree) ), 0);
+	/* extract the entire directory tree */
+    if (!guboot_extract (&volInfo, BK_BASE_PTR (&(volInfo.dirTree)), NULL)) {
+    	return FALSE;
+	}
 	
 	/* we're finished with this ISO, so clean up */
-    bk_destroy_vol_info(&volInfo);
+    bk_destroy_vol_info (&volInfo);
 	
 	g_message ("Soweit alles ok!");
 	
-	return FALSE;
-	
-	
-	gint ret;
-	gchar *command;
-	
-	command = g_strdup_printf ("7z -bd -y -o\"%s\" x \"%s\"", destination, isofile);
-	g_debug ("Kommando: %s", command);
-	ret = system (command);
-	g_free (command);
-	
-	//g_debug ("Return Wert von system Aufruf: %i", ret);
-	
-	if (ret == 0) {
-		return TRUE;
-	} else {
-		return FALSE;
-	}
+	return TRUE;
 }
 
 

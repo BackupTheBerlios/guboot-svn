@@ -27,19 +27,19 @@
 
 GVolumeMonitor *monitor;
 
-#define MOUNT_ADD    1
-#define MOUNT_REMOVE 2
-
 
 void mount_added (GVolumeMonitor *monitor, GMount *mount, gpointer data)
 {
 	gchar *name;
 	gchar *uuid;
 	
-	name = g_mount_get_name (mount);
 	uuid = g_mount_get_uuid (mount);
+	if (!uuid) {
+		return;
+	}
+	name = g_mount_get_name (mount);
 	
-	g_debug ("%s added!", name);
+	g_debug ("mount_added uuid: %s / name: %s", uuid, name);
 	gui_device_insert (uuid, name);
 }
 
@@ -49,10 +49,13 @@ void mount_removed (GVolumeMonitor *monitor, GMount *mount, gpointer data)
 	gchar *name;
 	gchar *uuid;
 	
-	name = g_mount_get_name (mount);
 	uuid = g_mount_get_uuid (mount);
-
-	g_debug ("%s removed!", name);
+	if (!uuid) {
+		return;
+	}
+	name = g_mount_get_name (mount);
+	
+	g_debug ("mount_removed uuid: %s / name: %s", uuid, name);
 	gui_device_remove (uuid);
 }
 
@@ -85,4 +88,27 @@ void devices_fill_gui (void)
 }
 
 
+// Gibt zB. /media/SuperTalent zurück
+gchar* devices_get_mntpoint_for_uuid (gchar *uuid)
+{
+	GMount *mount;
+	GFile *root;
+	
+	mount = g_volume_monitor_get_mount_for_uuid (monitor, uuid);
+	root = g_mount_get_root (mount);
+	
+	return g_file_get_path (root);
+}
 
+
+// Gibt zB. /dev/sdf1 zurück
+gchar* devices_get_partition_for_uuid (gchar *uuid)
+{
+	GMount *mount;
+	GVolume *volume;
+	
+	mount = g_volume_monitor_get_mount_for_uuid (monitor, uuid);
+	volume = g_mount_get_volume (mount);
+	
+	return g_volume_get_identifier (volume, G_VOLUME_IDENTIFIER_KIND_UNIX_DEVICE);
+}

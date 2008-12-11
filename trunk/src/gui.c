@@ -21,9 +21,11 @@
 
 #include "gui.h"
 #include "guboot.h"
+#include "devices.h"
 
 #include <string.h>
 #include <glade/glade.h>
+#include <gio/gio.h>
 
 #define INSTALLED_GLADE  GUBOOT_DIR"/guboot.glade"
 #define INSTALLED_ICON   ICON_DIR"/guboot.png"
@@ -63,8 +65,12 @@ GtkWidget* gui_get_widget (gchar *name)
 gboolean gui_ready_for_create (void)
 {
 	if (devices_count > 0 && gui_image_get_file ()) {
+		gtk_widget_set_sensitive (GTK_WIDGET (button_create), TRUE);
+		g_debug ("gui is ready!");
 		return TRUE;
 	}
+	gtk_widget_set_sensitive (GTK_WIDGET (button_create), FALSE);
+	g_debug ("gui not ready!");
 	return FALSE;
 }
 
@@ -78,6 +84,15 @@ void gui_msg_dialog (gchar *msg, GtkMessageType type)
 	gtk_dialog_run (GTK_DIALOG (dlg));
 	gtk_widget_destroy (dlg);
 }
+
+
+// Tritt auf, wenn eine Datei ausgewählt wurde
+void on_file_set (GtkFileChooserButton *widget, gpointer user_data)
+{
+	g_debug ("File was set!");
+	gui_ready_for_create ();
+}
+
 
 // Das GUI initialisieren
 void gui_init (int argc, char *argv[])
@@ -120,6 +135,9 @@ void gui_init (int argc, char *argv[])
 
 	// Verbinde die Signale automatisch mit dem GUI
 	glade_xml_signal_autoconnect(glade);
+	
+	// FileChooser Signal
+	g_signal_connect (chooser, "file-set", G_CALLBACK (on_file_set), NULL);
 
 	// Filter für den Image Auswahldialog
 	GtkFileFilter *filter;
@@ -132,11 +150,17 @@ void gui_init (int argc, char *argv[])
 	if (argc > 1) {
 		g_debug ("Übergebene Datei: %s", argv[1]);
 		gtk_file_chooser_set_filename (GTK_FILE_CHOOSER (chooser), argv[1]);
+		gchar *filename = gtk_file_chooser_get_uri (GTK_FILE_CHOOSER (chooser));
+		g_debug ("filename: %s", filename);
+		
+		//gui_image_get_file ();
 	}
 	
 	// Devices Combobox initialisieren
 	model_devs = gtk_list_store_new (COLS_DEV, G_TYPE_STRING, G_TYPE_STRING);
 	gtk_combo_box_set_model (GTK_COMBO_BOX(combo_devs), GTK_TREE_MODEL(model_devs));
+	
+	gui_ready_for_create ();
 }
 
 
@@ -150,7 +174,12 @@ void on_window_main_destroy(GtkWidget *widget, gpointer user_data)
 // Gibt das ausgewählte Image zurück
 gchar* gui_image_get_file (void)
 {
-	return gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (chooser));
+	gchar *file;
+	
+	file = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (chooser));
+	g_debug ("file: %s", file);
+	
+	return file;
 }
 
 
@@ -158,20 +187,14 @@ gchar* gui_image_get_file (void)
 void gui_device_insert (const gchar *uuid, const gchar *name)
 {
 	GtkTreeIter iter;
-	
-	if (name == NULL || !strcmp (name, "") || uuid == NULL || !strcmp (uuid, "")) {
-		return;
-	}
 		
 	gtk_list_store_append (GTK_LIST_STORE (model_devs), &iter);
 	gtk_list_store_set (GTK_LIST_STORE (model_devs), &iter, COL_DEV_NAME, name,
 										   					COL_DEV_UUID, uuid, -1);
 	gtk_combo_box_set_active_iter (GTK_COMBO_BOX (combo_devs), &iter);
 	
-	if (gui_ready_for_create ()) {
-		gtk_widget_set_sensitive (GTK_WIDGET (button_create), TRUE);
-	}
 	devices_count++;
+	gui_ready_for_create ();
 }
 
 
@@ -195,9 +218,7 @@ void gui_device_remove (const gchar *uuid)
 	} while (gtk_tree_model_iter_next (GTK_TREE_MODEL (model_devs), &iter));
 	
 	devices_count--;
-	if (!gui_ready_for_create ()) {
-		gtk_widget_set_sensitive (GTK_WIDGET (button_create), FALSE);
-	}
+	gui_ready_for_create ();
 }
 
 
@@ -210,7 +231,7 @@ gchar* gui_device_get_name (void)
 	
 	model = (GtkListStore*)gtk_combo_box_get_model (GTK_COMBO_BOX(combo_devs));
 	gtk_combo_box_get_active_iter (GTK_COMBO_BOX(combo_devs), &iter);	
-	gtk_tree_model_get (GTK_TREE_MODEL(model), &iter, 0, &name, -1);
+	gtk_tree_model_get (GTK_TREE_MODEL(model), &iter, COL_DEV_NAME, &name, -1);
 	
 	return g_strdup (name);
 }
@@ -219,28 +240,30 @@ gchar* gui_device_get_name (void)
 // Gibt den Mountpunkt (z.B. /media/disk) des selektierten Device zurück
 gchar* gui_device_get_mntpoint (void)
 {
-	/*gchar *mntpoint;
+	gchar *uuid;
 	GtkTreeIter iter;
 	GtkListStore *model;
 	
 	model = (GtkListStore*)gtk_combo_box_get_model (GTK_COMBO_BOX(combo_devs));
 	gtk_combo_box_get_active_iter (GTK_COMBO_BOX(combo_devs), &iter);	
-	gtk_tree_model_get (GTK_TREE_MODEL(model), &iter, 1, &mntpoint, -1);*/
+	gtk_tree_model_get (GTK_TREE_MODEL(model), &iter, COL_DEV_UUID, &uuid, -1);
 	
-	return g_strdup ("none");
+	return devices_get_mntpoint_for_uuid (uuid);
 }
 
 
 // Gibt den Partitionsnamen (z.B. /dev/sdf1) des selektierten Device zurück
 gchar* gui_device_get_partition (void)
 {
-	/*gchar *partition;
+	gchar *uuid;
 	GtkTreeIter iter;
+	GtkListStore *model;
 	
-	gtk_combo_box_get_active_iter (GTK_COMBO_BOX (combo_devs), &iter);	
-	gtk_tree_model_get (GTK_TREE_MODEL (model_devs), &iter, COL_DEV_PART, &partition, -1);*/
+	model = (GtkListStore*)gtk_combo_box_get_model (GTK_COMBO_BOX(combo_devs));
+	gtk_combo_box_get_active_iter (GTK_COMBO_BOX(combo_devs), &iter);	
+	gtk_tree_model_get (GTK_TREE_MODEL(model), &iter, COL_DEV_UUID, &uuid, -1);
 	
-	return g_strdup ("none");
+	return devices_get_partition_for_uuid (uuid);
 }
 
 
@@ -269,12 +292,14 @@ gboolean gui_delete_checked (void)
 // Event-Handler für den Erstellen Button
 void on_button_create_clicked (GtkWidget *widget, gpointer user_data)
 {
-	if (!gui_image_get_file () || devices_count < 1) {
-		gui_msg_dialog ("Kein Image oder kein USB Stick vorhanden!", GTK_MESSAGE_INFO);
-		return;
-	}
+	gchar *mntpoint, *partition;
+	mntpoint = gui_device_get_mntpoint ();
+	partition = gui_device_get_partition ();
+	g_debug ("mntpoint: %s", mntpoint);
+	g_debug ("partition: %s", partition);
 	
 	if (guboot_create ()) {
 		gui_msg_dialog ("Die USB-Boot-Stick Erstellung war erfolgreich!", GTK_MESSAGE_INFO);
 	}
 }
+

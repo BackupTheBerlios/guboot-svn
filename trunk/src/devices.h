@@ -23,9 +23,13 @@
 #define DEVICES_H
 
 // Includes
+#include <glib.h>
 
 // Functions
 void devices_init (void);
 void devices_fill_gui (void);
+
+gchar* devices_get_mntpoint_for_uuid (gchar *uuid);
+gchar* devices_get_partition_for_uuid (gchar *uuid);
 
 #endif

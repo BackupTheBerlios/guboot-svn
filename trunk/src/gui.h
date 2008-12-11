@@ -42,5 +42,4 @@ gboolean gui_delete_checked (void);
 
 void gui_msg_dialog (gchar *msg, GtkMessageType type);
 
-
 #endif
