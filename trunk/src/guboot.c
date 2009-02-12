@@ -41,7 +41,6 @@ gboolean guboot_delete_files (gchar *path)
 	// Fehler abfangen, falls kein Pfad angegeben wurde
 	if (!path) {
 		gui_msg_dialog ("Falscher Pfad!", GTK_MESSAGE_WARNING);
-                gui_msg_dialog("Test", GTK_MESSAGE_INFO)
 		return FALSE;
 	}
 	
