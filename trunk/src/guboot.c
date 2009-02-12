@@ -29,6 +29,7 @@
 #include <string.h>
 
 #include <stdlib.h>
+#include <gtk-2.0/gtk/gtkmessagedialog.h>
 
 
 // Löscht die Dateien im übergebenen Verzeichnis
@@ -40,6 +41,7 @@ gboolean guboot_delete_files (gchar *path)
 	// Fehler abfangen, falls kein Pfad angegeben wurde
 	if (!path) {
 		gui_msg_dialog ("Falscher Pfad!", GTK_MESSAGE_WARNING);
+                gui_msg_dialog("Test", GTK_MESSAGE_INFO)
 		return FALSE;
 	}
 	
@@ -176,21 +178,21 @@ gboolean guboot_extract (VolInfo* volInfo, BkFileBase* base, gchar *dir)
 			}
 			child = child->next;
 		}
-    } else if (IS_REG_FILE (base->posixFileMode) || IS_SYMLINK (base->posixFileMode)) {
+    } else if (IS_REG_FILE (base->posixFileMode)) {
         // extract this file
+        gint rc;
         gchar *input, *output;
         input = g_strdup_printf ("%s/%s", dir, base->name);
         output = g_strdup_printf ("%s%s", gui_device_get_mntpoint (), dir);
         g_debug ("extract: input: %s   output: %s", input, output);
-        
-        gint rc;
         rc = bk_extract (volInfo, input, output, TRUE, readProgressUpdaterCbk);
 		if (rc <= 0) {
 			g_warning ("%s", bk_get_error_string (rc));
 			return FALSE;
 		}
-        
-    }
+    } else if (IS_SYMLINK (base->posixFileMode)) {
+    	g_debug ("Hier Symlink behandeln!");
+	}
     
     return TRUE;
 }
